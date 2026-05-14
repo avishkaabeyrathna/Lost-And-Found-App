@@ -119,7 +119,3 @@ This allows users to find nearby lost and found items.
 5. Run on emulator or Android device
 
 ---
-
-## Author
-
-Avishka Abeyrathna
