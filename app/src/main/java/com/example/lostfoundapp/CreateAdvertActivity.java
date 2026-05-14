@@ -1,6 +1,7 @@
 package com.example.lostfoundapp;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -8,24 +9,40 @@ import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Toast;
+import android.location.Geocoder;
+import android.location.Address;
+import android.Manifest;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.libraries.places.api.Places;
+import com.google.android.libraries.places.api.model.Place;
+import com.google.android.libraries.places.widget.Autocomplete;
+import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Arrays;
 import java.util.Locale;
+import java.util.List;
 
 public class CreateAdvertActivity extends AppCompatActivity {
 
     private RadioGroup postTypeGroup;
     private Spinner categorySpinner;
     private EditText nameTxt, phoneTxt, descTxt, dateTxt, locationTxt;
-    private Button chooseImgBtn, saveBtn;
+    private Button chooseImgBtn, saveBtn, currentLocationBtn;
 
     private String imageUriString = "";
+    private double selectedLat = 0.0;
+    private double selectedLng = 0.0;
     private DatabaseHelper db;
+    private FusedLocationProviderClient fusedLocationClient;
 
     // Keeping this here for now since these categories are small and unlikely to change often.
     private final String[] advertCategories = {
@@ -53,12 +70,42 @@ public class CreateAdvertActivity extends AppCompatActivity {
                 Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show();
             });
 
+    // Places autocomplete result
+    private final ActivityResultLauncher<Intent> placeLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Place place = Autocomplete.getPlaceFromIntent(result.getData());
+
+                    locationTxt.setText(place.getAddress());
+
+                    if (place.getLatLng() != null) {
+                        selectedLat = place.getLatLng().latitude;
+                        selectedLng = place.getLatLng().longitude;
+                    }
+                }
+            });
+
+    // Location permission launcher
+    private final ActivityResultLauncher<String> locationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    getCurrentLocation();
+                } else {
+                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show();
+                }
+            });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_advert);
 
         db = new DatabaseHelper(this);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        if (!Places.isInitialized()) {
+            Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
+        }
 
         postTypeGroup = findViewById(R.id.radioPostType);
         categorySpinner = findViewById(R.id.spinnerCategory);
@@ -70,11 +117,14 @@ public class CreateAdvertActivity extends AppCompatActivity {
         locationTxt = findViewById(R.id.etLocation);
 
         chooseImgBtn = findViewById(R.id.btnChooseImage);
+        currentLocationBtn = findViewById(R.id.btnCurrentLocation);
         saveBtn = findViewById(R.id.btnSave);
 
         setupCategoryList();
 
         chooseImgBtn.setOnClickListener(v -> pickImage.launch(new String[]{"image/*"}));
+        locationTxt.setOnClickListener(v -> openPlaceAutocomplete());
+        currentLocationBtn.setOnClickListener(v -> checkLocationPermission());
         saveBtn.setOnClickListener(v -> saveAdvert());
     }
 
@@ -86,6 +136,63 @@ public class CreateAdvertActivity extends AppCompatActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(categoryAdapter);
     }
+
+    private void openPlaceAutocomplete() {
+        List<Place.Field> fields = Arrays.asList(
+                Place.Field.ADDRESS,
+                Place.Field.LAT_LNG
+        );
+
+        Intent intent = new Autocomplete.IntentBuilder(
+                AutocompleteActivityMode.OVERLAY,
+                fields
+        ).build(this);
+
+        placeLauncher.launch(intent);
+    }
+
+    private void checkLocationPermission() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            getCurrentLocation();
+        } else {
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+    }
+
+    private void getCurrentLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location == null) {
+                Toast.makeText(this, "Current location not available", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            selectedLat = location.getLatitude();
+            selectedLng = location.getLongitude();
+
+            String addressText = "Current Location";
+
+            try {
+                Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+                List<Address> addresses = geocoder.getFromLocation(selectedLat, selectedLng, 1);
+
+                if (addresses != null && !addresses.isEmpty()) {
+                    addressText = addresses.get(0).getAddressLine(0);
+                }
+            } catch (Exception e) {
+                addressText = "Current Location";
+            }
+
+            locationTxt.setText(addressText);
+            Toast.makeText(this, "Current location selected", Toast.LENGTH_SHORT).show();
+        });
+    }
+
 
     private void saveAdvert() {
         String postType = getSelectedPostType();
@@ -108,11 +215,13 @@ public class CreateAdvertActivity extends AppCompatActivity {
             return;
         }
 
-        // Maybe later: show a preview thumbnail before saving.
-        // previewImage(imageUriString);
-
         if (imageUriString.length() == 0) {
             Toast.makeText(this, "Please upload an image", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (selectedLat == 0.0 && selectedLng == 0.0) {
+            Toast.makeText(this, "Please select a valid location", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -127,7 +236,9 @@ public class CreateAdvertActivity extends AppCompatActivity {
                 itemDate,
                 foundOrLostLocation,
                 imageUriString,
-                createdAt
+                createdAt,
+                selectedLat,
+                selectedLng
         );
 
         if (wasInserted) {

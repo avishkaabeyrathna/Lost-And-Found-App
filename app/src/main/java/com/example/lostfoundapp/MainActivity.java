@@ -16,6 +16,7 @@ public class MainActivity extends AppCompatActivity {
         // Wire up the main navigation buttons
         Button btnAddAdvert = findViewById(R.id.btnCreateAdvert);
         Button btnViewItems = findViewById(R.id.btnShowItems);
+        Button btnShowMap = findViewById(R.id.btnShowMap);
 
         btnAddAdvert.setOnClickListener(v -> {
             Intent navIntent = new Intent(MainActivity.this, CreateAdvertActivity.class);
@@ -25,6 +26,11 @@ public class MainActivity extends AppCompatActivity {
         btnViewItems.setOnClickListener(v -> {
             Intent navIntent = new Intent(MainActivity.this, ListAdvertActivity.class);
             startActivity(navIntent);
+        });
+
+        btnShowMap.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, MapsActivity.class);
+            startActivity(intent);
         });
     }
 }

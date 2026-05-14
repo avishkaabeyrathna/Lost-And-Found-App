@@ -60,7 +60,15 @@
             android:id="@+id/etLocation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Location" />
+            android:hint="Location"
+            android:focusable="false"
+            android:clickable="true" />
+
+        <Button
+            android:id="@+id/btnCurrentLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Get Current Location" />
 
         <Button
             android:id="@+id/btnChooseImage"

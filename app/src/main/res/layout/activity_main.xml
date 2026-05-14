@@ -17,4 +17,10 @@
         android:layout_height="wrap_content"
         android:text="Show All Lost and Found Items" />
 
+    <Button
+        android:id="@+id/btnShowMap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Show on Map" />
+
 </LinearLayout>

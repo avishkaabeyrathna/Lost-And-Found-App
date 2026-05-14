@@ -32,7 +32,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "date TEXT, " +
                 "location TEXT, " +
                 "imageUri TEXT, " +
-                "timestamp TEXT)";
+                "timestamp TEXT," +
+                "latitude REAL, " +
+                "longitude REAL)";
         db.execSQL(query);
     }
 
@@ -46,7 +48,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // Insert new advert
     public boolean insertAdvert(String postType, String category, String name, String phone,
                                 String description, String date, String location,
-                                String imageUri, String timestamp) {
+                                String imageUri, String timestamp, double latitude, double longitude) {
 
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -60,6 +62,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put("location", location);
         values.put("imageUri", imageUri);
         values.put("timestamp", timestamp);
+        values.put("latitude", latitude);
+        values.put("longitude", longitude);
 
         long result = db.insert(TABLE_NAME, null, values);
         return result != -1;
@@ -84,7 +88,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         cursor.getString(6),
                         cursor.getString(7),
                         cursor.getString(8),
-                        cursor.getString(9)
+                        cursor.getString(9),
+                        cursor.getDouble(10),
+                        cursor.getDouble(11)
                 );
                 adverts.add(advert);
             } while (cursor.moveToNext());
@@ -116,7 +122,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         cursor.getString(6),
                         cursor.getString(7),
                         cursor.getString(8),
-                        cursor.getString(9)
+                        cursor.getString(9),
+                        cursor.getDouble(10),
+                        cursor.getDouble(11)
                 );
                 adverts.add(advert);
             } while (cursor.moveToNext());
@@ -146,7 +154,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     cursor.getString(6),
                     cursor.getString(7),
                     cursor.getString(8),
-                    cursor.getString(9)
+                    cursor.getString(9),
+                    cursor.getDouble(10),
+                    cursor.getDouble(11)
             );
 
             cursor.close();
